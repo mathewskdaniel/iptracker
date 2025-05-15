@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IP Info Lookup</title>
+  <style>
+    :root {
+      --bg-dark: #000;
+      --card-bg: #111;
+      --border: #222;
+      --accent: #00d9a6;
+      --text: #eee;
+      --label: #ccc;
+      --error: #f55;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: "Segoe UI", sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text);
+    }
+
+    button {
+      cursor: pointer;
+      background-color: var(--accent);
+      color: #000;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #00ffc3;
+      box-shadow: 0 0 8px #00ffc370;
+    }
+
+    .section {
+      margin-top: 30px;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--label);
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid #1f1f1f;
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 10px;
+    }
+
+    .card p {
+      margin: 6px 0;
+      font-size: 15px;
+    }
+
+    .card strong {
+      color: var(--accent);
+    }
+
+    .placeholder {
+      font-style: italic;
+      color: #777;
+    }
+
+    .ip-inline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .toggle-btn {
+      padding: 6px 12px;
+      font-size: 14px;
+      margin-left: 12px;
+      background-color: #222;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .toggle-btn:hover {
+      background-color: #333;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>IP Info Lookup</h2>
+
+  <div class="container">
+    <input type="text" id="ipInput" placeholder="Enter IP address" />
+    <button onclick="lookupIP()">Submit</button>
+
+    <div class="section">
+      <div class="title">IP Details</div>
+      <div id="resultCard" class="card placeholder">Enter an IP and click submit to view results.</div>
+    </div>
+
+    <div class="section">
+      <div id="yourIPCard" class="card placeholder">
+        Loading...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = "a6c2e5328296f5";
+
+    function formatKey(key) {
+      const map = {
+        ip: "IP",
+        hostname: "Hostname",
+        city: "City",
+        region: "Region",
+        country: "Country",
+        loc: "Location",
+        org: "AS Name",
+        postal: "Postal Code",
+        timezone: "Timezone"
+      };
+      return map[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function displayData(containerId, data) {
+      if (containerId === "yourIPCard") {
+        const container = document.getElementById(containerId);
+        container.classList.remove("placeholder");
+
+        const ipLine = `
+          <div class="ip-inline">
+            <p><strong>Your IP is:</strong> ${data.ip}</p>
+            <button class="toggle-btn" onclick="toggleDetails()">Details</button>
+          </div>
+        `;
+
+        const otherData = Object.entries(data)
+          .filter(([key]) => key !== "ip")
+          .map(([key, value]) => `<p><strong>${formatKey(key)}:</strong> ${value}</p>`)
+          .join('');
+
+        container.innerHTML = `
+          ${ipLine}
+          <div id="ipDetails" class="hidden">${otherData}</div>
+        `;
+      } else {
+        const container = document.getElementById(containerId);
+        container.classList.remove("placeholder");
+        container.innerHTML = Object.entries(data)
+          .map(([key, value]) => `<p><strong>${formatKey(key)}:</strong> ${value}</p>`)
+          .join('');
+      }
+    }
+
+    function toggleDetails() {
+      const details = document.getElementById("ipDetails");
+      if (details) {
+        details.classList.toggle("hidden");
+      }
+    }
+
+    function displayError(containerId, message) {
+      const container = document.getElementById(containerId);
+      container.classList.remove("placeholder");
+      container.innerHTML = `<p style="color: var(--error);">${message}</p>`;
+    }
+
+    function lookupIP() {
+      const ip = document.getElementById("ipInput").value.trim();
+      if (!ip) {
+        displayError("resultCard", "Please enter a valid IP address.");
+        return;
+      }
+
+      fetch(`https://api.ipinfo.io/lite/${ip}?token=${token}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Invalid IP or request failed");
+          return res.json();
+        })
+        .then(data => displayData("resultCard", data))
+        .catch(err => displayError("resultCard", err.message));
+    }
+
+    fetch(`https://api.ipinfo.io/lite/me?token=${token}`)
+      .then(res => res.json())
+      .then(data => displayData("yourIPCard", data))
+      .catch(err => displayError("yourIPCard", "Failed to load your IP info: " + err.message));
+
+    // Handle Enter key for input field
+    document.getElementById("ipInput").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        lookupIP();
+      }
+    });
+  </script>
+
+</body>
+</html>
